@@ -1,0 +1,16 @@
+{
+  "name": "ドッジボール 出場メンバー管理",
+  "short_name": "出場管理",
+  "description": "ドッジボールの試合ごとの出場メンバー登録・出場回数カウント・メンバー表作成",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d47a1",
+  "theme_color": "#0d47a1",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
