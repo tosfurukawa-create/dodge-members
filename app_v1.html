@@ -199,6 +199,16 @@ label.fld input:focus, label.fld textarea:focus{outline:none; border-color:var(-
 .jchip.sel{border-color:var(--accent); background:var(--accent-light); color:var(--accent);}
 .hint{font-size:12px; color:var(--muted); margin:2px 4px;}
 
+/* ===== レギュラー（★） ===== */
+.pchip.reg{border-color:#f3c98f;}
+.pchip .star{color:var(--accent); font-weight:800; margin-right:1px; flex-shrink:0;}
+.pgrid .gsub{grid-column:1/-1; font-size:12.5px; font-weight:800; color:var(--muted); margin:8px 2px 0;}
+.reg-badge{display:inline-block; font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-light); border-radius:6px; padding:1px 6px; margin-left:6px; vertical-align:2px;}
+.regbtn{display:flex; align-items:center; gap:10px; width:100%; border:1.5px solid var(--line); background:#fff; border-radius:10px; padding:11px 12px; margin:12px 0 0; font-weight:700; color:var(--muted); font-size:15px; text-align:left;}
+.regbtn .rchk{width:24px; height:24px; border-radius:7px; border:2px solid #c3cfdd; display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px; flex-shrink:0;}
+.regbtn.on{border-color:var(--accent); background:var(--accent-light); color:var(--accent);}
+.regbtn.on .rchk{background:var(--accent); border-color:var(--accent);}
+
 /* ===== メンバー表 ===== */
 #sheetPaper{background:#fff; border-radius:14px; margin:4px 0 16px; padding:20px 16px 24px; box-shadow:0 1px 4px rgba(16,42,67,.1);}
 #sheetPaper .team{text-align:center; font-size:20px; font-weight:800; letter-spacing:.03em;}
@@ -370,6 +380,9 @@ label.fld input:focus, label.fld textarea:focus{outline:none; border-color:var(-
     <div class="sheet-title" id="memTitle">メンバーを追加</div>
     <label class="fld"><span>背番号</span><input type="number" id="memNum" min="0" max="999" inputmode="numeric"></label>
     <label class="fld"><span>名前</span><input id="memName" placeholder="例：山田 太郎"></label>
+    <button type="button" class="regbtn" id="memRegBtn" onclick="toggleMemReg()">
+      <span class="rchk" id="memRegChk"></span><span>⭐ レギュラー（試合で自動選択）</span>
+    </button>
     <div style="display:flex; gap:8px; margin-top:14px;">
       <button class="btn gray" style="flex:1;" onclick="closeMember()">キャンセル</button>
       <button class="btn" style="flex:1;" onclick="saveMember()">保存</button>
@@ -411,6 +424,7 @@ var cSort = 'num';       // 出場回数タブの並び順 num|asc|desc（デフ
 var ED = null;           // 試合エディタの編集中データ
 var edSort = 'num';      // エディタ内の並び順
 var memEditId = null;    // メンバー編集対象id
+var memRegular = false;  // メンバー編集モーダルのレギュラー状態
 
 /* ---------- ユーティリティ ---------- */
 function $(id){ return document.getElementById(id); }
@@ -647,10 +661,18 @@ function renderBench(){
     var sel = d.benchIds.indexOf(m.id) >= 0;
     html += '<div class="mrow bench-row' + (sel?' sel':'') + '" onclick="benchToggle(\'' + m.id + '\')">' +
       '<div class="num">' + esc(m.num) + '</div>' +
-      '<div class="nm">' + esc(m.name) + '</div>' +
+      '<div class="nm">' + esc(m.name) + (m.regular ? '<span class="reg-badge">⭐レギュラー</span>' : '') + '</div>' +
       '<div class="chk">' + (sel ? '✓' : '') + '</div></div>';
   });
+  html += '<button class="btn block" style="margin:14px 0 6px;" onclick="benchDone()">✓ 登録して試合へ進む</button>';
   v.innerHTML = html;
+}
+function benchDone(){
+  var d = curDay();
+  if(d.benchIds.length === 0){ toast('ベンチ入りメンバーを1人以上選んでください'); return; }
+  save();
+  switchTab('matches');
+  toast('ベンチ入り' + d.benchIds.length + '人を登録しました');
 }
 function benchToggle(id){
   var d = curDay();
@@ -694,7 +716,7 @@ function renderRoster(){
   S.members.slice().sort(byNum).forEach(function(m){
     html += '<div class="mrow">' +
       '<div class="num">' + esc(m.num) + '</div>' +
-      '<div class="nm">' + esc(m.name) + '</div>' +
+      '<div class="nm">' + esc(m.name) + (m.regular ? '<span class="reg-badge">⭐レギュラー</span>' : '') + '</div>' +
       '<button class="icon-btn" onclick="openMember(\'' + m.id + '\')">✎</button>' +
       '</div>';
   });
@@ -723,9 +745,16 @@ function openMember(id){
   $('memTitle').textContent = m ? 'メンバーを編集' : 'メンバーを追加';
   $('memNum').value = m ? m.num : nextNum();
   $('memName').value = m ? m.name : '';
+  memRegular = !!(m && m.regular);
+  updateMemRegUI();
   $('memDelBtn').style.display = m ? 'flex' : 'none';
   $('m-member').classList.add('show');
   if(!m) setTimeout(function(){ $('memName').focus(); }, 100);
+}
+function toggleMemReg(){ memRegular = !memRegular; updateMemRegUI(); }
+function updateMemRegUI(){
+  $('memRegBtn').classList.toggle('on', memRegular);
+  $('memRegChk').textContent = memRegular ? '✓' : '';
 }
 function closeMember(){ $('m-member').classList.remove('show'); }
 function saveMember(){
@@ -735,9 +764,9 @@ function saveMember(){
   if(isNaN(num) || num < 0){ toast('背番号を入力してください'); return; }
   if(memEditId){
     var m = member(memEditId);
-    if(m){ m.name = name; m.num = num; }
+    if(m){ m.name = name; m.num = num; m.regular = memRegular; }
   }else{
-    S.members.push({ id: uid(), num: num, name: name });
+    S.members.push({ id: uid(), num: num, name: name, regular: memRegular });
   }
   save(); closeMember(); render();
 }
@@ -828,6 +857,14 @@ function deleteDay(id){
 }
 
 /* ----- 試合エディタ ----- */
+/* ベンチ入りしているレギュラーのid（背番号順・limit人まで） */
+function benchRegularIds(limit){
+  var ids = curDay().benchIds.map(member)
+    .filter(function(m){ return m && m.regular; })
+    .sort(byNum)
+    .map(function(m){ return m.id; });
+  return (limit != null) ? ids.slice(0, limit) : ids;
+}
 function openMatch(matchId){
   var d = curDay();
   if(d.benchIds.length === 0){
@@ -839,7 +876,7 @@ function openMatch(matchId){
   d.matches.forEach(function(x, i){ if(x.id === matchId){ m = x; idx = i; } });
   ED = m
     ? { matchId: m.id, idx: idx, opponent: m.opponent, format: m.format, playerIds: m.playerIds.slice(), jumperId: m.jumperId }
-    : { matchId: null, idx: d.matches.length, opponent: '', format: 12, playerIds: [], jumperId: null };
+    : { matchId: null, idx: d.matches.length, opponent: '', format: 12, playerIds: benchRegularIds(12), jumperId: null };
   $('edTitle').textContent = '第' + (ED.idx + 1) + '試合' + (m ? 'の編集' : 'を登録');
   $('edOpp').value = ED.opponent;
   $('edDelBtn').style.display = m ? 'flex' : 'none';
@@ -874,12 +911,19 @@ function setJumper(id){
 function autoPick(){
   var d = curDay();
   var counts = countsFor(d, ED.matchId);
-  var pool = d.benchIds.map(member).filter(Boolean)
-    .sort(function(a,b){ return ((counts[a.id]||0) - (counts[b.id]||0)) || byNum(a,b); });
-  ED.playerIds = pool.slice(0, ED.format).map(function(m){ return m.id; });
+  var byCount = function(a,b){ return ((counts[a.id]||0) - (counts[b.id]||0)) || byNum(a,b); };
+  var pool = d.benchIds.map(member).filter(Boolean);
+  // レギュラーは固定（背番号順で先に確定）、残り枠を出場が少ない順で埋める
+  var regs = pool.filter(function(m){ return m.regular; }).sort(byNum);
+  var others = pool.filter(function(m){ return !m.regular; }).sort(byCount);
+  var picked = regs.slice(0, ED.format);
+  others.forEach(function(m){ if(picked.length < ED.format) picked.push(m); });
+  ED.playerIds = picked.map(function(m){ return m.id; });
   if(ED.jumperId && ED.playerIds.indexOf(ED.jumperId) < 0) ED.jumperId = null;
   renderEditor();
-  toast('出場が少ない順に' + ED.playerIds.length + '人を選択しました');
+  toast(regs.length
+    ? 'レギュラー' + Math.min(regs.length, ED.format) + '人＋出場が少ない順で' + ED.playerIds.length + '人を選択しました'
+    : '出場が少ない順に' + ED.playerIds.length + '人を選択しました');
 }
 function copyPrev(){
   var d = curDay();
@@ -908,19 +952,27 @@ function renderEditor(){
   // 並び順ボタン
   $('edSortNum').classList.toggle('on', edSort === 'num');
   $('edSortAsc').classList.toggle('on', edSort === 'asc');
-  // メンバーグリッド
+  // メンバーグリッド（レギュラーを上部に固定表示）
   var pool = d.benchIds.map(member).filter(Boolean);
-  if(edSort === 'num') pool.sort(byNum);
-  else pool.sort(function(a,b){ return ((counts[a.id]||0) - (counts[b.id]||0)) || byNum(a,b); });
-  var html = '';
-  pool.forEach(function(m){
+  var sorter = (edSort === 'num') ? byNum
+    : function(a,b){ return ((counts[a.id]||0) - (counts[b.id]||0)) || byNum(a,b); };
+  var regs = pool.filter(function(m){ return m.regular; }).sort(sorter);
+  var others = pool.filter(function(m){ return !m.regular; }).sort(sorter);
+  function pchip(m){
     var sel = ED.playerIds.indexOf(m.id) >= 0;
     var c = counts[m.id] || 0;
-    html += '<button class="pchip' + (sel?' sel':'') + '" onclick="togglePlayer(\'' + m.id + '\')">' +
+    return '<button class="pchip' + (sel?' sel':'') + (m.regular?' reg':'') + '" onclick="togglePlayer(\'' + m.id + '\')">' +
       '<span class="pn">' + esc(m.num) + '</span>' +
-      '<span class="nm">' + esc(m.name) + '</span>' +
+      '<span class="nm">' + (m.regular?'<span class="star">★</span>':'') + esc(m.name) + '</span>' +
       '<span class="pc' + (c===0?' zero':'') + '">' + c + '回</span></button>';
-  });
+  }
+  var html = '';
+  if(regs.length){
+    html += '<div class="gsub">⭐ レギュラー</div>';
+    regs.forEach(function(m){ html += pchip(m); });
+    if(others.length) html += '<div class="gsub">その他</div>';
+  }
+  others.forEach(function(m){ html += pchip(m); });
   $('edGrid').innerHTML = html;
   // ジャンパー
   var jhtml = '';
