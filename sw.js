@@ -1,11 +1,11 @@
 /* 出場メンバー管理 Service Worker
    Web公開時にオフラインでも動作するようにするためのファイル。
    キャッシュを更新したいときは CACHE の番号を上げる。 */
-var CACHE = 'dodge-member-cache-v1';
+var CACHE = 'dodge-member-cache-v2';
 var ASSETS = [
   './',
   './index.html',
-  './出場メンバー管理_v1.html',
+  './app_v1.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
