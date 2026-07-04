@@ -83,6 +83,13 @@ h2.sec{font-size:14px; color:var(--muted); font-weight:700; margin:16px 4px 8px;
 .match-card .jmp{color:var(--accent); font-weight:700;}
 .match-card .row3{display:flex; gap:8px; margin-top:10px;}
 .match-card .row3 .btn{flex:1;}
+.match-card .reorder{margin-left:auto; display:flex; gap:6px; flex-shrink:0;}
+.match-card .reorder button{
+  width:36px; height:36px; border:1.5px solid var(--line); background:#fff; border-radius:9px;
+  font-size:15px; color:var(--primary); line-height:1; display:flex; align-items:center; justify-content:center;
+}
+.match-card .reorder button:active{transform:scale(.94);}
+.match-card .reorder button:disabled{color:#c8d2df; border-color:#eef2f7; background:#f7f9fc;}
 
 /* ===== 出場回数 ===== */
 .sort-row{display:flex; gap:6px; margin:10px 0;}
@@ -577,13 +584,22 @@ function renderMatches(){
   if(d.matches.length === 0){
     html += '<div class="empty"><div class="big">🏐</div><p>まだ試合がありません。<br>下のボタンから追加してください。</p></div>';
   }
+  if(d.matches.length > 1){
+    html += '<p class="note" style="margin-top:0;">▲▼ボタンで試合の順番を入れ替えられます（対戦相手・メンバーごと移動）</p>';
+  }
   d.matches.forEach(function(m, i){
     var n = m.playerIds.length;
     var ok = (n === m.format);
     var j = m.jumperId ? member(m.jumperId) : null;
+    var reorder = (d.matches.length > 1)
+      ? '<span class="reorder">' +
+          '<button onclick="event.stopPropagation(); moveMatch(\'' + m.id + '\',-1)"' + (i===0?' disabled':'') + ' aria-label="上へ移動">▲</button>' +
+          '<button onclick="event.stopPropagation(); moveMatch(\'' + m.id + '\',1)"' + (i===d.matches.length-1?' disabled':'') + ' aria-label="下へ移動">▼</button>' +
+        '</span>'
+      : '';
     html += '<div class="match-card" onclick="openMatch(\'' + m.id + '\')">' +
       '<div class="row1"><span class="mno">第' + (i+1) + '試合</span>' +
-      '<span class="fmt">' + m.format + '人制</span></div>' +
+      '<span class="fmt">' + m.format + '人制</span>' + reorder + '</div>' +
       (m.opponent ? '<div class="opp">vs ' + esc(m.opponent) + '</div>' : '') +
       '<div class="row2">' +
         '<span>👥 <span class="' + (ok ? 'cnt-ok' : 'cnt-ng') + '">' + n + '/' + m.format + '人</span></span>' +
@@ -596,6 +612,20 @@ function renderMatches(){
   });
   html += '<button class="btn block" style="margin:14px 0 6px;" onclick="openMatch(null)">＋ 試合を追加</button>';
   v.innerHTML = html;
+}
+/* 試合の順番を入れ替え（dir:-1で上へ / +1で下へ。試合まるごと移動＝第N試合が入れ替わる） */
+function moveMatch(id, dir){
+  var d = curDay();
+  var idx = -1;
+  d.matches.forEach(function(x, k){ if(x.id === id) idx = k; });
+  if(idx < 0) return;
+  var j = idx + dir;
+  if(j < 0 || j >= d.matches.length) return;
+  var tmp = d.matches[idx];
+  d.matches[idx] = d.matches[j];
+  d.matches[j] = tmp;
+  save(); renderMatches();
+  toast('第' + (idx+1) + '試合と第' + (j+1) + '試合を入れ替えました');
 }
 
 /* ----- 出場回数タブ ----- */
